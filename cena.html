@@ -2,13 +2,13 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Teste animação em código — E se a gravidade desligasse?</title>
+<title>Teste animação em código — E se a gravidade desligasse? (v2)</title>
 <style>
-  html, body { margin: 0; padding: 0; width: 720px; height: 1280px; overflow: hidden; background: #ffffff; }
+  html, body { margin: 0; padding: 0; width: 720px; height: 1280px; overflow: hidden; background: #f5eeda; }
   #c { display: block; width: 720px; height: 1280px; }
   .txt { position: absolute; left: 0; width: 720px; text-align: center;
-         font-family: Arial, Helvetica, sans-serif; font-weight: bold; color: #111;
-         pointer-events: none; }
+         font-family: Arial, Helvetica, sans-serif; font-weight: bold; color: #222;
+         pointer-events: none; text-shadow: 0 2px 12px rgba(255,255,255,0.7); }
   #title { top: 90px; font-size: 54px; line-height: 1.15; }
   #end { bottom: 110px; font-size: 48px; }
 </style>
@@ -31,52 +31,107 @@ const smooth = (a, b, x) => { const u = clamp01((x - a) / (b - a)); return u * u
 const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
 renderer.setSize(W, H, false);
 renderer.setPixelRatio(1);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xffffff);
+scene.background = new THREE.Color(0xf5eeda);
 const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 100);
 // Push-in lento da câmera (afastada para caber o boneco flutuando + objetos)
 camera.position.set(0, 2.6, 10.6 - T * 0.09);
 camera.lookAt(0, 2.0, 0);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-const sun = new THREE.DirectionalLight(0xffffff, 0.75);
-sun.position.set(4, 8, 6);
+// --- Luz: céu quente por cima + sol com sombra de verdade ---
+scene.add(new THREE.HemisphereLight(0xfff6e0, 0xc9a06a, 0.55));
+const sun = new THREE.DirectionalLight(0xfff2dd, 1.0);
+sun.position.set(5, 9, 7);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -6; sun.shadow.camera.right = 6;
+sun.shadow.camera.top = 8; sun.shadow.camera.bottom = -4;
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 25;
+sun.shadow.bias = -0.0005;
 scene.add(sun);
+const fill = new THREE.DirectionalLight(0xdfe8ff, 0.25);
+fill.position.set(-6, 4, 5);
+scene.add(fill);
 
 const black = new THREE.MeshLambertMaterial({ color: 0x111111 });
 const wood = new THREE.MeshLambertMaterial({ color: 0x8a6b46 });
+const woodFloor = new THREE.MeshLambertMaterial({ color: 0xb98a5a });
+const cream = new THREE.MeshLambertMaterial({ color: 0xf5eeda });
+const rugMat = new THREE.MeshLambertMaterial({ color: 0xc96f4a });
 const red = new THREE.MeshLambertMaterial({ color: 0xd43d2a });
 const white = new THREE.MeshLambertMaterial({ color: 0xf2f2f2 });
-const gray = new THREE.MeshLambertMaterial({ color: 0xe8e8e8 });
+const skyBlue = new THREE.MeshLambertMaterial({ color: 0x9fc8e8 });
 
-// Chão
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), gray);
+// --- Cenário: chão de madeira, parede, tapete e janela ---
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), woodFloor);
 ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
 scene.add(ground);
 
-// Sombra falsa (elipse que some quando ele flutua)
-const shadow = new THREE.Mesh(
-  new THREE.CircleGeometry(0.55, 32),
-  new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.15 })
-);
-shadow.rotation.x = -Math.PI / 2;
-shadow.position.y = 0.01;
-scene.add(shadow);
+const wall = new THREE.Mesh(new THREE.PlaneGeometry(30, 14), cream);
+wall.position.set(0, 7, -4);
+wall.receiveShadow = true;
+scene.add(wall);
+
+const baseboard = new THREE.Mesh(new THREE.BoxGeometry(30, 0.35, 0.12), white);
+baseboard.position.set(0, 0.18, -3.95);
+scene.add(baseboard);
+
+const rug = new THREE.Mesh(new THREE.CircleGeometry(2.4, 40), rugMat);
+rug.rotation.x = -Math.PI / 2;
+rug.position.y = 0.02;
+rug.receiveShadow = true;
+scene.add(rug);
+
+// Janela na parede (moldura branca + céu azul)
+const winFrame = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.6, 0.12), white);
+winFrame.position.set(-2.2, 5.6, -3.9);
+winFrame.castShadow = true;
+scene.add(winFrame);
+const winSky = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 2.3), skyBlue);
+winSky.position.set(-2.2, 5.6, -3.83);
+scene.add(winSky);
+const winBarV = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.3, 0.05), white);
+winBarV.position.set(-2.2, 5.6, -3.8);
+scene.add(winBarV);
+const winBarH = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.08, 0.05), white);
+winBarH.position.set(-2.2, 5.6, -3.8);
+scene.add(winBarH);
 
 function limb(len, r) {
   // Cilindro com o pivô no topo (para girar a partir do ombro/quadril)
   const geo = new THREE.CylinderGeometry(r, r, len, 12);
   geo.translate(0, -len / 2, 0);
-  return new THREE.Mesh(geo, black);
+  const m = new THREE.Mesh(geo, black);
+  m.castShadow = true;
+  // Mãozinha/pé na ponta do membro
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(r * 1.35, 10, 8), black);
+  tip.position.y = -len;
+  tip.castShadow = true;
+  m.add(tip);
+  return m;
 }
 
 // --- Boneco palito 3D (preto, como o do AnimaSolto) ---
 const man = new THREE.Group();
 const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 24, 18), black);
 head.position.y = 2.62;
+head.castShadow = true;
 man.add(head);
+// Olhos brancos com pupila (ele vira um personagem, não só um boneco)
+[-0.12, 0.12].forEach((x) => {
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 10), white);
+  eye.position.set(x, 2.68, 0.28);
+  man.add(eye);
+  const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), black);
+  pupil.position.set(x, 2.68, 0.34);
+  man.add(pupil);
+});
 const body = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.15, 12), black);
 body.position.y = 1.78;
+body.castShadow = true;
 man.add(body);
 const armL = new THREE.Group(); armL.position.set(-0.14, 2.28, 0);
 armL.add(limb(0.95, 0.07)); man.add(armL);
@@ -91,25 +146,29 @@ scene.add(man);
 // --- Objetos que também flutuam: cadeira, maçã e caneca ---
 const chair = new THREE.Group();
 const seat = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.12, 0.9), wood);
-seat.position.y = 0.75; chair.add(seat);
+seat.position.y = 0.75; seat.castShadow = true; chair.add(seat);
 const back = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.0, 0.1), wood);
-back.position.set(0, 1.3, -0.42); chair.add(back);
+back.position.set(0, 1.3, -0.42); back.castShadow = true; chair.add(back);
 [[-0.4, -0.4], [0.4, -0.4], [-0.4, 0.4], [0.4, 0.4]].forEach(([x, z]) => {
   const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.75, 8), wood);
-  leg.position.set(x, 0.37, z); chair.add(leg);
+  leg.position.set(x, 0.37, z); leg.castShadow = true; chair.add(leg);
 });
 chair.position.set(-1.9, 0, -0.6);
 scene.add(chair);
 
 const apple = new THREE.Group();
-apple.add(new THREE.Mesh(new THREE.SphereGeometry(0.22, 20, 14), red));
+const appleBody = new THREE.Mesh(new THREE.SphereGeometry(0.22, 20, 14), red);
+appleBody.castShadow = true;
+apple.add(appleBody);
 const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.18, 6), black);
 stem.position.y = 0.26; apple.add(stem);
 apple.position.set(1.9, 0.22, 0.3);
 scene.add(apple);
 
 const cup = new THREE.Group();
-cup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.3, 16), white));
+const cupBody = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.3, 16), white);
+cupBody.castShadow = true;
+cup.add(cupBody);
 cup.position.set(1.5, 0.15, -1.1);
 scene.add(cup);
 
@@ -140,10 +199,6 @@ apple.rotation.y = floating * T * 0.8;
 cup.position.y = 0.15 + floating * 1.6;
 cup.rotation.z = floating * 0.4;
 cup.rotation.y = floating * T * 0.5;
-
-shadow.material.opacity = 0.15 * (1 - floating * 0.65);
-const shScale = 1 - floating * 0.35;
-shadow.scale.set(shScale, shScale, 1);
 
 // Textos na tela
 document.getElementById('title').style.opacity = String(1 - smooth(2.0, 2.5, T));

@@ -18,7 +18,7 @@ jobs:
       - name: Renderizar os 120 frames
         run: bash render.sh
       - name: Juntar o vídeo
-        run: ffmpeg -y -framerate 15 -i frames/f%03d.png -c:v libx264 -pix_fmt yuv420p -movflags +faststart teste-gravidade.mp4
+        run: ffmpeg -y -framerate 30 -i frames/f%03d.png -c:v libx264 -pix_fmt yuv420p -movflags +faststart teste-gravidade.mp4
       - name: Publicar o vídeo
         uses: actions/upload-artifact@v4
         with:
