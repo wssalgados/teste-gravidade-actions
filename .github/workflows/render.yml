@@ -1,0 +1,27 @@
+name: Renderizar cena de teste
+
+on:
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Instalar Chrome
+        run: npx -y @puppeteer/browsers install chrome@stable
+      - name: Renderizar os 120 frames
+        run: bash render.sh
+      - name: Juntar o vídeo
+        run: ffmpeg -y -framerate 15 -i frames/f%03d.png -c:v libx264 -pix_fmt yuv420p -movflags +faststart teste-gravidade.mp4
+      - name: Publicar o vídeo
+        uses: actions/upload-artifact@v4
+        with:
+          name: teste-gravidade
+          path: teste-gravidade.mp4
+          if-no-files-found: error
